@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EE News – Live Page Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --red: #e8193c;
+    --dark: #0a0a0a;
+    --panel: #111;
+    --card: #171717;
+    --border: #252525;
+    --muted: #444;
+    --text: #e8e8e8;
+    --dim: #777;
+    --green: #22c55e;
+    --yellow: #f5c518;
+    --blue: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--dark); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 58px; position: sticky; top: 0; z-index: 100;
+  }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px; }
+  .logo span { color: var(--red); }
+  .status-dot {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; font-family: 'Space Mono', monospace; color: var(--dim);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  /* TOKEN SETUP */
+  .setup-screen {
+    max-width: 600px; margin: 60px auto; padding: 24px;
+  }
+  .setup-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 32px;
+  }
+  .setup-card h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px; letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .setup-card p { font-size: 14px; color: var(--dim); margin-bottom: 24px; line-height: 1.6; }
+  .field-label { font-size: 11px; font-family: 'Space Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 8px; }
+  input[type=text], textarea, select {
+    width: 100%; background: #0d0d0d; border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif;
+    font-size: 13px; padding: 12px 14px; outline: none; transition: border-color .2s;
+    resize: vertical;
+  }
+  input[type=text]:focus, textarea:focus, select:focus { border-color: var(--red); }
+  .mb16 { margin-bottom: 16px; }
+  .mb24 { margin-bottom: 24px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: none; border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+    padding: 12px 22px; cursor: pointer; transition: opacity .2s, transform .1s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--red); color: #fff; }
+  .btn-ghost { background: #1e1e1e; color: var(--text); border: 1px solid var(--border); }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-blue { background: var(--blue); color: #fff; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-sm { padding: 8px 14px; font-size: 12px; }
+
+  /* MAIN APP */
+  .app { display: none; }
+  .app.visible { display: block; }
+
+  nav {
+    display: flex; gap: 4px; padding: 14px 24px 0;
+    border-bottom: 1px solid var(--border); overflow-x: auto;
+  }
+  nav button {
+    background: none; border: none; color: var(--dim);
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    padding: 10px 16px; cursor: pointer;
+    border-bottom: 2px solid transparent; white-space: nowrap;
+    transition: color .2s, border-color .2s;
+  }
+  nav button.active { color: #fff; border-color: var(--red); }
+
+  main { padding: 24px; max-width: 860px; margin: 0 auto; }
+  .tab { display: none; animation: fadeUp .3s ease; }
+  .tab.active { display: block; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  .section-label {
+    font-family: 'Space Mono', monospace; font-size: 10px;
+    color: var(--red); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px; margin-bottom: 16px;
+  }
+  .card h3 { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+
+  /* POST COMPOSER */
+  .char-count { font-size: 11px; color: var(--dim); text-align: right; margin-top: 6px; font-family: 'Space Mono', monospace; }
+  .char-count.warn { color: var(--yellow); }
+  .char-count.over { color: var(--red); }
+
+  /* COMMENTS FEED */
+  .comment-item {
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+    display: flex; gap: 12px;
+  }
+  .comment-item:last-child { border-bottom: none; }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: linear-gradient(135deg, #2a2a2a, #3a3a3a);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0; font-weight: 600; color: var(--dim);
+  }
+  .comment-body { flex: 1; }
+  .comment-meta { display: flex; gap: 10px; align-items: baseline; margin-bottom: 4px; }
+  .comment-name { font-size: 13px; font-weight: 600; color: #fff; }
+  .comment-time { font-size: 11px; color: var(--dim); font-family: 'Space Mono', monospace; }
+  .comment-text { font-size: 13px; color: var(--dim); line-height: 1.5; margin-bottom: 10px; }
+  .reply-box { display: flex; gap: 8px; margin-top: 8px; }
+  .reply-input {
+    flex: 1; background: #111; border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-family: 'DM Sans', sans-serif;
+    font-size: 13px; padding: 8px 12px; outline: none;
+  }
+  .reply-input:focus { border-color: var(--red); }
+
+  /* PAGE INSIGHTS */
+  .insight-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px; margin-bottom: 20px;
+  }
+  .insight-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px; text-align: center;
+  }
+  .insight-val {
+    font-family: 'Bebas Neue', sans-serif; font-size: 32px;
+    color: var(--red); line-height: 1;
+  }
+  .insight-lbl { font-size: 11px; color: var(--dim); margin-top: 6px; }
+
+  /* POSTS FEED */
+  .post-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; margin-bottom: 12px;
+  }
+  .post-message { font-size: 14px; line-height: 1.6; margin-bottom: 10px; }
+  .post-meta { display: flex; gap: 16px; font-size: 11px; color: var(--dim); font-family: 'Space Mono', monospace; }
+  .post-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+  /* ALERTS */
+  .alert {
+    padding: 12px 16px; border-radius: 8px; font-size: 13px;
+    margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+  }
+  .alert-success { background: #0f2d1a; border: 1px solid #1a4f2e; color: var(--green); }
+  .alert-error { background: #2d0f0f; border: 1px solid #4f1a1a; color: #f87171; }
+  .alert-info { background: #0f1d2d; border: 1px solid #1a334f; color: var(--blue); }
+
+  /* SPINNER */
+  .spinner {
+    display: inline-block; width: 13px; height: 13px;
+    border: 2px solid rgba(255,255,255,.2); border-top-color: #fff;
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .flex1 { flex: 1; min-width: 180px; }
+  .mt12 { margin-top: 12px; }
+  .mt16 { margin-top: 16px; }
+
+  .empty-state {
+    text-align: center; padding: 40px 20px;
+    color: var(--dim); font-size: 14px;
+  }
+  .empty-state .icon { font-size: 32px; margin-bottom: 12px; }
+
+  /* AI SUGGEST */
+  .ai-suggest-box {
+    background: #0d1117; border: 1px solid #1e2d3d;
+    border-radius: 8px; padding: 14px; margin-top: 12px;
+    font-size: 13px; line-height: 1.7; color: var(--text);
+    white-space: pre-wrap;
+  }
+  .ai-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; font-family: 'Space Mono', monospace;
+    color: var(--blue); background: #0f1d2d; border: 1px solid #1a334f;
+    padding: 3px 8px; border-radius: 20px; margin-bottom: 10px;
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #111; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span>EE</span> News <span style="font-size:13px;color:var(--dim);font-weight:400;font-family:'DM Sans',sans-serif;margin-left:6px">Live Manager</span></div>
+  <div class="status-dot">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-text">Not connected</span>
+  </div>
+</header>
+
+<!-- SETUP SCREEN -->
+<div class="setup-screen" id="setup-screen">
+  <div class="setup-card">
+    <h2>Connect EE News</h2>
+    <p>Enter your Facebook Page Access Token and Page ID to connect the AI manager to your real EE News page.</p>
+
+    <div class="mb16">
+      <div class="field-label">Page Access Token</div>
+      <input type="text" id="token-input" placeholder="Paste your Page Access Token here…" />
+    </div>
+    <div class="mb24">
+      <div class="field-label">Page ID</div>
+      <input type="text" id="pageid-input" value="1069267246262877" placeholder="Your Page ID" />
+    </div>
+    <button class="btn btn-primary" id="connect-btn" onclick="connectPage()">
+      <span>Connect to EE News</span>
+    </button>
+    <div id="connect-error" style="margin-top:14px;display:none"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="main-app">
+  <nav>
+    <button class="active" onclick="switchTab('compose')">✍️ Post</button>
+    <button onclick="switchTab('posts')">📋 My Posts</button>
+    <button onclick="switchTab('comments')">💬 Comments</button>
+    <button onclick="switchTab('insights')">📊 Insights</button>
+    <button onclick="switchTab('ai')">🤖 AI Writer</button>
+  </nav>
+
+  <main>
+
+    <!-- COMPOSE TAB -->
+    <div class="tab active" id="tab-compose">
+      <div class="card">
+        <p class="section-label">Create a Post</p>
+        <h3>What's happening on EE News?</h3>
+        <textarea id="post-text" rows="5" placeholder="Write your post here… or use the AI Writer tab to generate one automatically." oninput="updateCharCount()"></textarea>
+        <div class="char-count" id="char-count">0 / 63,206</div>
+
+        <div class="row mt12">
+          <select id="post-type" class="flex1">
+            <option value="text">📝 Text Post</option>
+            <option value="link">🔗 Post with Link</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="suggestCaption()">🤖 AI Improve</button>
+        </div>
+
+        <div id="link-field" style="display:none;margin-top:12px">
+          <div class="field-label">Link URL</div>
+          <input type="text" id="post-link" placeholder="https://…" />
+        </div>
+
+        <div id="ai-improve-box" style="display:none" class="mt12">
+          <div class="ai-badge">✨ AI Suggestion</div>
+          <div class="ai-suggest-box" id="ai-improve-text">Generating…</div>
+          <div class="row mt12">
+            <button class="btn btn-green btn-sm" onclick="useAISuggestion()">Use This</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('ai-improve-box').style.display='none'">Dismiss</button>
+          </div>
+        </div>
+
+        <div class="mt16">
+          <button class="btn btn-primary" id="post-btn" onclick="publishPost()">
+            <span>Publish to EE News</span>
+          </button>
+        </div>
+        <div id="post-result" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <!-- POSTS TAB -->
+    <div class="tab" id="tab-posts">
+      <div class="card">
+        <p class="section-label">Recent Posts</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="margin:0">EE News Feed</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadPosts()">🔄 Refresh</button>
+        </div>
+        <div id="posts-list">
+          <div class="empty-state"><div class="icon">📋</div>Loading your posts…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMMENTS TAB -->
+    <div class="tab" id="tab-comments">
+      <div class="card">
+        <p class="section-label">Comments on Recent Posts</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="margin:0">Manage Comments</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadComments()">🔄 Refresh</button>
+        </div>
+        <div id="comments-list">
+          <div class="empty-state"><div class="icon">💬</div>Loading comments…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INSIGHTS TAB -->
+    <div class="tab" id="tab-insights">
+      <p class="section-label">Page Insights</p>
+      <div class="insight-grid" id="insights-grid">
+        <div class="insight-box"><div class="insight-val">—</div><div class="insight-lbl">Page Fans</div></div>
+        <div class="insight-box"><div class="insight-val">—</div><div class="insight-lbl">Posts Today</div></div>
+        <div class="insight-box"><div class="insight-val">—</div><div class="insight-lbl">Page ID</div></div>
+      </div>
+      <div class="card">
+        <p class="section-label">Page Info</p>
+        <div id="page-info-box">
+          <div class="empty-state"><div class="icon">📊</div>Loading page info…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI WRITER TAB -->
+    <div class="tab" id="tab-ai">
+      <div class="card">
+        <p class="section-label">AI Post Writer</p>
+        <h3>Describe your post idea</h3>
+        <textarea id="ai-topic" rows="3" placeholder="e.g. 'Funny video of a goat interrupting a news broadcast' or 'Breaking: road accident in Monrovia'"></textarea>
+
+        <div class="row mt12">
+          <select id="ai-type" class="flex1">
+            <option>📰 News</option>
+            <option>🎬 Entertainment</option>
+            <option>😂 Funny Video</option>
+            <option>🔥 Trending</option>
+            <option>💡 Did You Know</option>
+          </select>
+          <select id="ai-tone" class="flex1">
+            <option>⚡ Punchy</option>
+            <option>😂 Funny</option>
+            <option>🎯 Serious</option>
+            <option>🤩 Hype</option>
+          </select>
+        </div>
+
+        <div class="mt12">
+          <button class="btn btn-primary" id="ai-write-btn" onclick="generateAIPost()">
+            <span>Generate Post</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="card" id="ai-result-card" style="display:none">
+        <p class="section-label">Generated Post</p>
+        <div class="ai-suggest-box" id="ai-result-text"></div>
+        <div class="row mt12">
+          <button class="btn btn-green" onclick="sendToComposer()">📤 Send to Composer</button>
+          <button class="btn btn-ghost btn-sm" onclick="generateAIPost()">🔄 Regenerate</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+let PAGE_TOKEN = '';
+let PAGE_ID = '1069267246262877';
+const FB_BASE = 'https://graph.facebook.com/v19.0';
+let postsCache = [];
+
+// ===== SETUP =====
+async function connectPage() {
+  const token = document.getElementById('token-input').value.trim();
+  const pageId = document.getElementById('pageid-input').value.trim();
+  if (!token || !pageId) { showConnectError('Please fill in both fields.'); return; }
+
+  const btn = document.getElementById('connect-btn');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Connecting…`;
+
+  try {
+    // Use /me endpoint with the page token — works without special permissions
+    const res = await fetch(`${FB_BASE}/me?fields=name,id&access_token=${token}`);
+    const data = await res.json();
+
+    if (data.error) {
+      showConnectError('❌ ' + data.error.message);
+      btn.disabled = false;
+      btn.innerHTML = `<span>Connect to EE News</span>`;
+      return;
+    }
+
+    PAGE_TOKEN = token;
+    PAGE_ID = pageId;
+
+    // Store in session
+    sessionStorage.setItem('ee_token', token);
+    sessionStorage.setItem('ee_pageid', pageId);
+    sessionStorage.setItem('ee_pagename', data.name || 'EE News');
+
+    launchApp({ name: data.name || 'EE News', fan_count: '—' });
+  } catch(e) {
+    showConnectError('Connection failed: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = `<span>Connect to EE News</span>`;
+  }
+}
+
+function showConnectError(msg) {
+  const el = document.getElementById('connect-error');
+  el.style.display = 'block';
+  el.innerHTML = `<div class="alert alert-error">${msg}</div>`;
+}
+
+function launchApp(pageData) {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('main-app').classList.add('visible');
+  document.getElementById('status-dot').classList.add('connected');
+  document.getElementById('status-text').textContent = pageData.name || 'EE News';
+
+  loadInsights(pageData);
+  loadPosts();
+}
+
+// ===== TAB SWITCHING =====
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+
+  if (name === 'comments') loadComments();
+}
+
+// ===== COMPOSE =====
+function updateCharCount() {
+  const len = document.getElementById('post-text').value.length;
+  const el = document.getElementById('char-count');
+  el.textContent = `${len.toLocaleString()} / 63,206`;
+  el.className = 'char-count' + (len > 60000 ? ' over' : len > 50000 ? ' warn' : '');
+}
+
+document.getElementById('post-type').addEventListener('change', function() {
+  document.getElementById('link-field').style.display = this.value === 'link' ? 'block' : 'none';
+});
+
+async function publishPost() {
+  const message = document.getElementById('post-text').value.trim();
+  if (!message) { alert('Please write something first!'); return; }
+
+  const btn = document.getElementById('post-btn');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Publishing…`;
+
+  try {
+    const body = { message, access_token: PAGE_TOKEN };
+    const link = document.getElementById('post-link').value.trim();
+    if (link) body.link = link;
+
+    const res = await fetch(`${FB_BASE}/${PAGE_ID}/feed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      document.getElementById('post-result').innerHTML = `<div class="alert alert-error">❌ ${data.error.message}</div>`;
+    } else {
+      document.getElementById('post-result').innerHTML = `<div class="alert alert-success">✅ Post published successfully! Post ID: ${data.id}</div>`;
+      document.getElementById('post-text').value = '';
+      updateCharCount();
+    }
+  } catch(e) {
+    document.getElementById('post-result').innerHTML = `<div class="alert alert-error">❌ Error: ${e.message}</div>`;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `<span>Publish to EE News</span>`;
+}
+
+// ===== LOAD POSTS =====
+async function loadPosts() {
+  document.getElementById('posts-list').innerHTML = `<div class="empty-state"><div class="icon">⏳</div>Loading posts…</div>`;
+  try {
+    const res = await fetch(`${FB_BASE}/${PAGE_ID}/posts?fields=message,created_time,likes.summary(true),comments.summary(true)&limit=10&access_token=${PAGE_TOKEN}`);
+    const data = await res.json();
+
+    if (data.error) {
+      document.getElementById('posts-list').innerHTML = `<div class="alert alert-error">❌ ${data.error.message}</div>`;
+      return;
+    }
+
+    postsCache = data.data || [];
+    if (!postsCache.length) {
+      document.getElementById('posts-list').innerHTML = `<div class="empty-state"><div class="icon">📭</div>No posts found.</div>`;
+      return;
+    }
+
+    document.getElementById('posts-list').innerHTML = postsCache.map(post => `
+      <div class="post-card">
+        <div class="post-message">${(post.message || '(No text)').substring(0, 280)}${(post.message || '').length > 280 ? '…' : ''}</div>
+        <div class="post-meta">
+          <span>🕐 ${new Date(post.created_time).toLocaleString()}</span>
+          <span>❤️ ${post.likes?.summary?.total_count || 0} likes</span>
+          <span>💬 ${post.comments?.summary?.total_count || 0} comments</span>
+        </div>
+        <div class="post-actions">
+          <button class="btn btn-ghost btn-sm" onclick="viewPostComments('${post.id}')">View Comments</button>
+          <button class="btn btn-ghost btn-sm" onclick="deletePost('${post.id}', this)">🗑 Delete</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('posts-list').innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
+  }
+}
+
+async function deletePost(postId, btn) {
+  if (!confirm('Delete this post from EE News?')) return;
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+  try {
+    const res = await fetch(`${FB_BASE}/${postId}?access_token=${PAGE_TOKEN}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) { loadPosts(); }
+    else { alert('Could not delete: ' + (data.error?.message || 'Unknown error')); btn.disabled = false; btn.textContent = '🗑 Delete'; }
+  } catch(e) { alert('Error: ' + e.message); btn.disabled = false; btn.textContent = '🗑 Delete'; }
+}
+
+// ===== COMMENTS =====
+async function loadComments() {
+  document.getElementById('comments-list').innerHTML = `<div class="empty-state"><div class="icon">⏳</div>Loading comments…</div>`;
+  try {
+    // Get most recent post's comments
+    const postsRes = await fetch(`${FB_BASE}/${PAGE_ID}/posts?fields=message,comments{from,message,created_time,id}&limit=5&access_token=${PAGE_TOKEN}`);
+    const postsData = await postsRes.json();
+
+    if (postsData.error) {
+      document.getElementById('comments-list').innerHTML = `<div class="alert alert-error">❌ ${postsData.error.message}</div>`;
+      return;
+    }
+
+    let allComments = [];
+    (postsData.data || []).forEach(post => {
+      if (post.comments?.data?.length) {
+        post.comments.data.forEach(c => {
+          allComments.push({ ...c, postMessage: (post.message || '').substring(0, 60) + '…' });
+        });
+      }
+    });
+
+    if (!allComments.length) {
+      document.getElementById('comments-list').innerHTML = `<div class="empty-state"><div class="icon">💬</div>No comments on recent posts.</div>`;
+      return;
+    }
+
+    document.getElementById('comments-list').innerHTML = allComments.map(c => `
+      <div class="comment-item">
+        <div class="avatar">${(c.from?.name || '?')[0].toUpperCase()}</div>
+        <div class="comment-body">
+          <div class="comment-meta">
+            <span class="comment-name">${c.from?.name || 'Unknown'}</span>
+            <span class="comment-time">${new Date(c.created_time).toLocaleString()}</span>
+          </div>
+          <div class="comment-text">${c.message}</div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:8px;font-family:'Space Mono',monospace">On: ${c.postMessage}</div>
+          <div class="reply-box">
+            <input class="reply-input" placeholder="Write a reply…" id="reply-${c.id}" />
+            <button class="btn btn-primary btn-sm" onclick="replyToComment('${c.id}', this)">Reply</button>
+            <button class="btn btn-ghost btn-sm" onclick="aiReply('${c.id}', '${c.message.replace(/'/g,"\\'")}', this)">🤖 AI Reply</button>
+          </div>
+          <div id="reply-result-${c.id}" style="margin-top:8px"></div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('comments-list').innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
+  }
+}
+
+async function viewPostComments(postId) {
+  switchTab('comments');
+  document.querySelectorAll('nav button').forEach((b,i) => { if(i===2) b.classList.add('active'); else b.classList.remove('active'); });
+}
+
+async function replyToComment(commentId, btn) {
+  const input = document.getElementById(`reply-${commentId}`);
+  const message = input.value.trim();
+  if (!message) { alert('Type a reply first.'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span>`;
+
+  try {
+    const res = await fetch(`${FB_BASE}/${commentId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, access_token: PAGE_TOKEN })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      document.getElementById(`reply-result-${commentId}`).innerHTML = `<div class="alert alert-error">❌ ${data.error.message}</div>`;
+    } else {
+      document.getElementById(`reply-result-${commentId}`).innerHTML = `<div class="alert alert-success">✅ Reply posted!</div>`;
+      input.value = '';
+    }
+  } catch(e) {
+    document.getElementById(`reply-result-${commentId}`).innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = 'Reply';
+}
+
+async function aiReply(commentId, commentText, btn) {
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span>`;
+  const input = document.getElementById(`reply-${commentId}`);
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: 'You manage EE News, a Facebook page covering news, entertainment, and funny videos. Write a short, natural, friendly reply to this comment. 1-2 sentences max. Include 1-2 emojis. Sound like a real page admin.',
+        messages: [{ role: 'user', content: `Comment: "${commentText}"\nWrite a reply:` }]
+      })
+    });
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || '';
+    input.value = reply;
+  } catch(e) {
+    input.value = 'Error generating reply.';
+  }
+  btn.disabled = false;
+  btn.textContent = '🤖 AI Reply';
+}
+
+// ===== INSIGHTS =====
+async function loadInsights(pageData) {
+  const grid = document.getElementById('insights-grid');
+  const fans = pageData.fan_count || pageData.followers_count || '—';
+
+  grid.innerHTML = `
+    <div class="insight-box"><div class="insight-val">${fans.toLocaleString?.() || fans}</div><div class="insight-lbl">Page Fans</div></div>
+    <div class="insight-box"><div class="insight-val">${PAGE_ID}</div><div class="insight-lbl">Page ID</div></div>
+    <div class="insight-box"><div class="insight-val">LIVE</div><div class="insight-lbl">Status</div></div>
+  `;
+
+  document.getElementById('page-info-box').innerHTML = `
+    <div style="display:grid;gap:12px">
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--dim);font-size:13px">Page Name</span>
+        <span style="font-size:13px;font-weight:600">${pageData.name || 'EE News'}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--dim);font-size:13px">Page ID</span>
+        <span style="font-size:13px;font-family:'Space Mono',monospace">${PAGE_ID}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--dim);font-size:13px">Fans / Followers</span>
+        <span style="font-size:13px;font-weight:600">${fans.toLocaleString?.() || fans}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0">
+        <span style="color:var(--dim);font-size:13px">Connection</span>
+        <span style="font-size:13px;color:var(--green);font-weight:600">✅ Connected</span>
+      </div>
+    </div>
+  `;
+}
+
+// ===== AI WRITER =====
+async function generateAIPost() {
+  const topic = document.getElementById('ai-topic').value.trim();
+  if (!topic) { alert('Describe your post idea first.'); return; }
+
+  const type = document.getElementById('ai-type').value;
+  const tone = document.getElementById('ai-tone').value;
+  const btn = document.getElementById('ai-write-btn');
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Writing…`;
+  document.getElementById('ai-result-card').style.display = 'none';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: 'You are a social media writer for EE News, a Facebook page covering news, entertainment, and funny videos based in Liberia. Write engaging Facebook posts optimized for reach and engagement.',
+        messages: [{ role: 'user', content: `Write a Facebook post about: "${topic}"\nContent type: ${type}\nTone: ${tone}\nRequirements:\n- Engaging and optimized for Facebook reach\n- Include relevant emojis\n- End with a call-to-action\n- Add 3-5 hashtags at the end\n- Under 150 words` }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || 'Could not generate post.';
+    document.getElementById('ai-result-text').textContent = text;
+    document.getElementById('ai-result-card').style.display = 'block';
+  } catch(e) {
+    document.getElementById('ai-result-text').textContent = 'Error: ' + e.message;
+    document.getElementById('ai-result-card').style.display = 'block';
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `<span>Generate Post</span>`;
+}
+
+function sendToComposer() {
+  const text = document.getElementById('ai-result-text').textContent;
+  document.getElementById('post-text').value = text;
+  updateCharCount();
+  switchTab('compose');
+  document.querySelectorAll('nav button')[0].classList.add('active');
+  document.querySelectorAll('nav button').forEach((b,i) => { if(i!==0) b.classList.remove('active'); });
+}
+
+async function suggestCaption() {
+  const current = document.getElementById('post-text').value.trim();
+  if (!current) { alert('Write something first, then AI will improve it.'); return; }
+
+  document.getElementById('ai-improve-box').style.display = 'block';
+  document.getElementById('ai-improve-text').textContent = 'Improving your post…';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: 'You improve Facebook posts for EE News, a page covering news, entertainment, and funny videos. Make posts more engaging, punchy, and optimized for Facebook reach.',
+        messages: [{ role: 'user', content: `Improve this Facebook post for better engagement:\n\n"${current}"\n\nKeep the same topic but make it more engaging. Include emojis and a call-to-action.` }]
+      })
+    });
+    const data = await res.json();
+    document.getElementById('ai-improve-text').textContent = data.content?.[0]?.text || 'Could not improve post.';
+  } catch(e) {
+    document.getElementById('ai-improve-text').textContent = 'Error: ' + e.message;
+  }
+}
+
+function useAISuggestion() {
+  const text = document.getElementById('ai-improve-text').textContent;
+  document.getElementById('post-text').value = text;
+  updateCharCount();
+  document.getElementById('ai-improve-box').style.display = 'none';
+}
+
+// Auto-connect if token in session
+window.addEventListener('load', () => {
+  const token = sessionStorage.getItem('ee_token');
+  const pageid = sessionStorage.getItem('ee_pageid');
+  if (token && pageid) {
+    document.getElementById('token-input').value = token;
+    document.getElementById('pageid-input').value = pageid;
+    connectPage();
+  }
+});
+</script>
+</body>
+</html>
