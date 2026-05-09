@@ -398,7 +398,8 @@ async function connectPage() {
   btn.innerHTML = `<span class="spinner"></span> Connecting…`;
 
   try {
-    const res = await fetch(`${FB_BASE}/${pageId}?fields=name,fan_count,followers_count&access_token=${token}`);
+    // Use /me endpoint with the page token — works without special permissions
+    const res = await fetch(`${FB_BASE}/me?fields=name,id&access_token=${token}`);
     const data = await res.json();
 
     if (data.error) {
@@ -416,7 +417,7 @@ async function connectPage() {
     sessionStorage.setItem('ee_pageid', pageId);
     sessionStorage.setItem('ee_pagename', data.name || 'EE News');
 
-    launchApp(data);
+    launchApp({ name: data.name || 'EE News', fan_count: '—' });
   } catch(e) {
     showConnectError('Connection failed: ' + e.message);
     btn.disabled = false;
