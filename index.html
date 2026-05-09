@@ -389,40 +389,19 @@ let postsCache = [];
 
 // ===== SETUP =====
 async function connectPage() {
-  const token = document.getElementById('token-input').value.trim();
-  const pageId = document.getElementById('pageid-input').value.trim();
-  if (!token || !pageId) { showConnectError('Please fill in both fields.'); return; }
+  const token = document.getElementById("token-input").value.trim();
+  const pageId = document.getElementById("pageid-input").value.trim();
+  if (!token || !pageId) { showConnectError("Please fill in both fields."); return; }
 
-  const btn = document.getElementById('connect-btn');
-  btn.disabled = true;
-  btn.innerHTML = `<span class="spinner"></span> Connecting…`;
+  PAGE_TOKEN = token;
+  PAGE_ID = pageId;
 
-  try {
-    // Use /me endpoint with the page token — works without special permissions
-    const res = await fetch(`${FB_BASE}/me?fields=name,id&access_token=${token}`);
-    const data = await res.json();
+  sessionStorage.setItem("ee_token", token);
+  sessionStorage.setItem("ee_pageid", pageId);
+  sessionStorage.setItem("ee_pagename", "EE News");
 
-    if (data.error) {
-      showConnectError('❌ ' + data.error.message);
-      btn.disabled = false;
-      btn.innerHTML = `<span>Connect to EE News</span>`;
-      return;
-    }
-
-    PAGE_TOKEN = token;
-    PAGE_ID = pageId;
-
-    // Store in session
-    sessionStorage.setItem('ee_token', token);
-    sessionStorage.setItem('ee_pageid', pageId);
-    sessionStorage.setItem('ee_pagename', data.name || 'EE News');
-
-    launchApp({ name: data.name || 'EE News', fan_count: '—' });
-  } catch(e) {
-    showConnectError('Connection failed: ' + e.message);
-    btn.disabled = false;
-    btn.innerHTML = `<span>Connect to EE News</span>`;
-  }
+  launchApp({ name: "EE News", fan_count: "—" });
+}
 }
 
 function showConnectError(msg) {
